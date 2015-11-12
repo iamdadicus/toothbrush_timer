@@ -27,12 +27,13 @@
 // initialize the library with the numbers of the interface pins
 LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 
-// set up a constant for the tilt switchPin
-const int switchPin = 6;
+// pins
+const int switchPin = 6;  //button
+const int resetPin  = 13; //reset
 
 byte button_status = 0; //LSB is used to store the button status on the last loop
 byte total_duration = 0;
-unsigned long next_interval = 0;
+unsigned long next_second = 0;
 
 //https://omerk.github.io/lcdchargen/
 byte gylph_table[][8] = {
@@ -81,13 +82,13 @@ byte gylph_table[][8] = {
   }  
 };
 
-//the lcd can only have 8 custom characters - we invert each character :. we are limited to four
+//the lcd can only have 8 custom characters - we also invert each character :. we are limited to four
 byte glyph_code_pages[3][4] = {
   {0,  1,  2, -1},    //code page 0
   {3, -1, -1, -1}     //code page 1
 };
 
-//glyph map indexes elements in the glyph codepage which in turn
+//glyph_map indexes elements in the glyph codepage which in turn
 //references the glyph table to draw a row of teeth
 //the rotateGlyph function is used to draw the mirror image
 //the first element is used to index the glyph code page
@@ -101,7 +102,7 @@ typedef struct {
     byte  duration;         //duration of instructions
     byte  top_glyph_mask;   //bitmask to flash top glyphset
     byte  bottom_glyph_mask;//bitmask to flash bottom glyphset
-    byte  glyph_set;        //set of custom chars to use
+    byte  glyph_set;        //index to glyph_map
 } brushing_direction;
 
 //brushing directions
@@ -131,6 +132,7 @@ brushing_direction brushing_directions[brushing_instruction_count] = {
 byte instruction = 0;
 byte glyph_map_index = -1;
 
+//rotates LCD glyph by 180 degrees
 byte* rotateGlyph(byte pIn[], byte pOut[]){
 
   for(int i = 0; i < 8; i++){
@@ -141,7 +143,16 @@ byte* rotateGlyph(byte pIn[], byte pOut[]){
 }
 
 void setup() {
-
+/*  http://www.instructables.com/id/two-ways-to-reset-arduino-in-software/
+ *   Pin 12 gets connected to the RESET pin by one wire.
+-Typically, this would be a problem because when the application starts up, all pins get pulled LOW. 
+This would therefore disable Arduino from every running. BUT, the trick is: in setup() function, the 
+FIRST thing that happens is we write HIGH to the pin 12, which is called our reset pin 
+(digitalWrite(resetPin, HIGH), thereby pulling the Arduino RESET pin HIGH.
+ */
+  digitalWrite(resetPin, HIGH);
+  pinMode(resetPin, OUTPUT); 
+  
   Serial.begin(9600);
   
   // set up the switch pin as an input
@@ -176,24 +187,91 @@ void loop() {
 */
   //isolate the LSB in button_status and XOR it with the current digital button status
   if( (button_status & 1) ^ digitalRead(switchPin) ){
-      //if we are here then the button state has changed     
+      //if we are here then the button state has changed, increment
+      //the number of button presses     
+      
       button_status++;
 
       if( 1 == button_status ) {
-          next_interval = millis() + 1000;
+          next_second = millis() + 1000;
           lcd.clear();          
+
+          //print the start of the count down
+          lcd.setCursor(0,0);  
+          //         ----------------
+          lcd.print(brushing_directions[instruction].duration);   
+          lcd.print(" ");
+          
           printChoppers();          
+      }
+      else if( 1 < button_status ) {
+        //if another button press occurs - we restart
+        digitalWrite(resetPin, LOW);
       }
   }
 
-  if( next_interval && millis() >= next_interval ) {
-    //seconds--;
-    next_interval = millis() + (1000 - (millis() - next_interval));
+  //if the button has been pressed && we are still processing instructions
+  if(button_status >= 1 && instruction < brushing_instruction_count) {
+  
+    //we have reached the next second
+    if( (millis() >= next_second) ) {    
+      lcd.setCursor(0,0);  
+      //         ----------------
+      lcd.print(brushing_directions[instruction].duration--);   
+      lcd.print(" ");
+          
+      next_second = millis() + (1000 - (millis() - next_second));
+  
+      //if we have reached the end of this instruction, move to the next
+      if( !brushing_directions[instruction].duration ) {
 
-    lcd.setCursor(0,0);  
-    //         ----------------
-    //lcd.print(seconds);   
-    lcd.print(" ");
+          //draw the next instruction glyphs if we haven't reached the ned of the instruction set
+          if( instruction++ < brushing_instruction_count ) {
+            printChoppers();
+          }
+      }
+    }
+
+    //flash teeth
+    for(int f = 0; f < 2; f++){
+      
+      delay(100);
+      
+      for(int i = 0; i < 8; i++){
+        //is this tooth marked as flashing?
+        if( 1<<i & brushing_directions[instruction].top_glyph_mask) {
+          lcd.setCursor(8 + i, 0);  
+          if( !f ) {
+            lcd.print(" ");
+          }
+          else {
+            lcd.write( (byte)glyph_map[ brushing_directions[instruction].glyph_set ][i + 1] );
+          }
+        }
+  
+        if( 1<<i & brushing_directions[instruction].bottom_glyph_mask) {
+          lcd.setCursor(8 + i, 1);  
+          if( !f ) {
+            lcd.print(" ");
+          }
+          else {
+            lcd.write( (byte)glyph_map[ brushing_directions[instruction].glyph_set ][i + 1] + 4 );
+          }
+        }
+      }
+    }
+  
+  //we've reached the end!
+  if( instruction == brushing_instruction_count ) {
+    
+    instruction++; //prevents re-entering this statement
+    lcd.clear();          
+
+    //print the start of the count down
+    lcd.setCursor(0, 0);  
+    lcd.print("Well done!");
+    lcd.setCursor(0, 1);  
+    lcd.print("Press start");
   }
 }
 
@@ -235,26 +313,5 @@ void printChoppers(){
   for(int i = 1; i < 9; i++) {
     lcd.write((byte)glyph_map[ (*p).glyph_set ][i] + 4);
   }
-  
-  
-/*  lcd.write((byte)MOLAR);
-  lcd.write((byte)MOLAR);
-  lcd.write((byte)CANINE);
-  lcd.write((byte)INCISOR);
-  lcd.write((byte)INCISOR);
-  lcd.write((byte)CANINE);  
-  lcd.write((byte)MOLAR);
-  lcd.write((byte)MOLAR);
-
-  lcd.setCursor(8,1);
-  lcd.write((byte)MOLAR + 3);
-  lcd.write((byte)MOLAR + 3);
-  lcd.write((byte)CANINE + 3);
-  lcd.write((byte)INCISOR + 3);
-  lcd.write((byte)INCISOR + 3);
-  lcd.write((byte)CANINE + 3);  
-  lcd.write((byte)MOLAR + 3);
-  lcd.write((byte)MOLAR + 3);
-*/  
 }
 
