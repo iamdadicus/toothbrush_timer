@@ -1,24 +1,5 @@
 /*
-  Arduino Starter Kit example
- Project 11  - Crystal Ball
-
- This sketch is written to accompany Project 11 in the
- Arduino Starter Kit
-
- Parts required:
- 220 ohm resistor
- 10 kilohm resistor
- 10 kilohm potentiometer
- 16x2 LCD screen
- tilt switch
-
-
- Created 13 September 2012
- by Scott Fitzgerald
-
- http://www.arduino.cc/starterKit
-
- This example code is part of the public domain
+ Arduino Toothbrush Timer
  */
 
 // include the library code:
@@ -32,8 +13,7 @@ const int switchPin = 6;  //button
 const int resetPin  = 13; //reset
 
 byte button_status = 0; //LSB is used to store the button status on the last loop
-byte total_duration = 0;
-unsigned long next_second = 0;
+unsigned long next_second = 0;  //next elapsed second occurs at this millis() value
 
 //https://omerk.github.io/lcdchargen/
 byte gylph_table[][8] = {
@@ -150,8 +130,8 @@ This would therefore disable Arduino from every running. BUT, the trick is: in s
 FIRST thing that happens is we write HIGH to the pin 12, which is called our reset pin 
 (digitalWrite(resetPin, HIGH), thereby pulling the Arduino RESET pin HIGH.
  */
-  digitalWrite(resetPin, HIGH);
-  pinMode(resetPin, OUTPUT); 
+  //digitalWrite(resetPin, HIGH);
+  //pinMode(resetPin, OUTPUT); 
   
   Serial.begin(9600);
   
@@ -159,6 +139,7 @@ FIRST thing that happens is we write HIGH to the pin 12, which is called our res
   pinMode(switchPin, INPUT);  
 
   //calculate the total duration of the brushing instructions
+  int total_duration = 0;
   for( int i = 0; i < brushing_instruction_count; i++) {
     total_duration += (int)(brushing_directions[i].duration);
   }
@@ -231,16 +212,19 @@ void loop() {
           }
       }
     }
-
+    
     //flash teeth
     for(int f = 0; f < 2; f++){
       
       delay(100);
       
       for(int i = 0; i < 8; i++){
+        
         //is this tooth marked as flashing?
-        if( 1<<i & brushing_directions[instruction].top_glyph_mask) {
-          lcd.setCursor(8 + i, 0);  
+        if( 1<<i & brushing_directions[instruction].top_glyph_mask ) {
+       
+          //the glyph masks are little endian while the hardware is big endian
+          lcd.setCursor(15 - i, 0);  
           if( !f ) {
             lcd.print(" ");
           }
@@ -250,7 +234,7 @@ void loop() {
         }
   
         if( 1<<i & brushing_directions[instruction].bottom_glyph_mask) {
-          lcd.setCursor(8 + i, 1);  
+          lcd.setCursor(15 - i, 1);  
           if( !f ) {
             lcd.print(" ");
           }
@@ -260,6 +244,7 @@ void loop() {
         }
       }
     }
+  }
   
   //we've reached the end!
   if( instruction == brushing_instruction_count ) {
