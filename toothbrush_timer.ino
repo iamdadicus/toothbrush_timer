@@ -14,6 +14,9 @@ const int resetPin  = 13; //reset
 
 byte button_status = 0; //LSB is used to store the button status on the last loop
 unsigned long next_second = 0;  //next elapsed second occurs at this millis() value
+unsigned long toggle_flash = 0;
+byte          flash_on = 0;
+const byte flash_duration = 200;
 
 //https://omerk.github.io/lcdchargen/
 byte gylph_table[][8] = {
@@ -59,13 +62,35 @@ byte gylph_table[][8] = {
     0b00000,
     0b00000,
     0b00000
-  }  
+  },
+  // 4 : plan view of canine
+  {
+    0b00000,
+    0b00000,  
+    0b11111,
+    0b11111,
+    0b00000,  
+    0b00000,
+    0b00000,
+    0b00000
+  },
+  // 5 : plan view of molar
+  {
+    0b00000,
+    0b01110,
+    0b11111,
+    0b11111,
+    0b11111,
+    0b11111,
+    0b01110,
+    0b00000
+  }    
 };
 
 //the lcd can only have 8 custom characters - we also invert each character :. we are limited to four
 byte glyph_code_pages[3][4] = {
   {0,  1,  2, -1},    //code page 0
-  {3, -1, -1, -1}     //code page 1
+  {3,  4,  5, -1}     //code page 1
 };
 
 //glyph_map indexes elements in the glyph codepage which in turn
@@ -74,7 +99,7 @@ byte glyph_code_pages[3][4] = {
 //the first element is used to index the glyph code page
 byte glyph_map[3][9] = {
   {0, 2,2,1,0,0,1,2,2},  //set 0 : anterior surfaces
-  {1, 0,0,0,0,0,0,0,0},  //set 1 : biting surfaces
+  {1, 2,2,1,0,0,1,2,2},  //set 1 : biting surfaces
   {0, 2,2,1,0,0,1,2,2}   //set 2 : interior surfaces
 };
 
@@ -175,6 +200,7 @@ void loop() {
 
       if( 1 == button_status ) {
           next_second = millis() + 1000;
+          toggle_flash = millis() + flash_duration;
           lcd.clear();          
 
           //print the start of the count down
@@ -202,6 +228,7 @@ void loop() {
       lcd.print(" ");
           
       next_second = millis() + (1000 - (millis() - next_second));
+      toggle_flash = millis() + flash_duration;
   
       //if we have reached the end of this instruction, move to the next
       if( !brushing_directions[instruction].duration ) {
@@ -212,12 +239,12 @@ void loop() {
           }
       }
     }
-    
-    //flash teeth
-    for(int f = 0; f < 2; f++){
-      
-      delay(100);
-      
+
+    if( millis() >= toggle_flash ) {
+
+      flash_on = ~flash_on;
+
+      //flash teeth
       for(int i = 0; i < 8; i++){
         
         //is this tooth marked as flashing?
@@ -225,7 +252,7 @@ void loop() {
        
           //the glyph masks are little endian while the hardware is big endian
           lcd.setCursor(15 - i, 0);  
-          if( !f ) {
+          if( flash_on ) {
             lcd.print(" ");
           }
           else {
@@ -235,17 +262,19 @@ void loop() {
   
         if( 1<<i & brushing_directions[instruction].bottom_glyph_mask) {
           lcd.setCursor(15 - i, 1);  
-          if( !f ) {
+          if( flash_on ) {
             lcd.print(" ");
           }
           else {
             lcd.write( (byte)glyph_map[ brushing_directions[instruction].glyph_set ][i + 1] + 4 );
           }
         }
-      }
+
+        toggle_flash = millis() + flash_duration;        
+      }      
     }
   }
-  
+      
   //we've reached the end!
   if( instruction == brushing_instruction_count ) {
     
