@@ -59,13 +59,46 @@ byte gylph_table[][8] = {
     0b00000,
     0b00000,
     0b00000
-  }  
+  },
+  // 4 : plan view of canine
+  {
+    0b00000,
+    0b00000,  
+    0b11111,
+    0b11111,
+    0b00000,  
+    0b00000,
+    0b00000,
+    0b00000
+  },
+  // 5 : plan view of molar (L)
+  {
+    0b00000,
+    0b01111,
+    0b11111,
+    0b11111,
+    0b11111,
+    0b11111,
+    0b11110,
+    0b00000
+  },
+  // 6 : plan view of molar (R)
+  {
+    0b00000,
+    0b11110,
+    0b11111,
+    0b11111,
+    0b11111,
+    0b11111,
+    0b01111,
+    0b00000
+  }   
 };
 
 //the lcd can only have 8 custom characters - we also invert each character :. we are limited to four
 byte glyph_code_pages[3][4] = {
   {0,  1,  2, -1},    //code page 0
-  {3, -1, -1, -1}     //code page 1
+  {3,  4,  5,  6}     //code page 1
 };
 
 //glyph_map indexes elements in the glyph codepage which in turn
@@ -74,7 +107,7 @@ byte glyph_code_pages[3][4] = {
 //the first element is used to index the glyph code page
 byte glyph_map[3][9] = {
   {0, 2,2,1,0,0,1,2,2},  //set 0 : anterior surfaces
-  {1, 0,0,0,0,0,0,0,0},  //set 1 : biting surfaces
+  {1, 2,2,1,0,0,1,3,3},  //set 1 : biting surfaces
   {0, 2,2,1,0,0,1,2,2}   //set 2 : interior surfaces
 };
 
@@ -214,9 +247,10 @@ void loop() {
     }
     
     //flash teeth
-    for(int f = 0; f < 2; f++){
-      
-      delay(100);
+    for(int f = 0; f < 2 && millis() < next_second; f++){
+
+      //delay up until next segment
+      delay( min(250, next_second - millis()) );
       
       for(int i = 0; i < 8; i++){
         
