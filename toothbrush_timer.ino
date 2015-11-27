@@ -92,13 +92,46 @@ byte gylph_table[][8] = {
     0b11111,
     0b01111,
     0b00000
-  }   
+  },
+  { //7 : incisor
+    0b01110,
+    0b11111,
+    0b10001,
+    0b10001,
+    0b10001,
+    0b10001,
+    0b10001,
+    0b11111
+  },
+  // 8 : canine 
+  {
+    0b01110,
+    0b11111,
+    0b10001,
+    0b10001,
+    0b10001,
+    0b10001,
+    0b01110,
+    0b00100
+  },
+  // 9 : molar
+  {
+    0b01110,
+    0b11111,
+    0b10001,
+    0b10001,
+    0b11111,  
+    0b11011,
+    0b00000,
+    0b00000
+  }     
 };
 
 //the lcd can only have 8 custom characters - we also invert each character :. we are limited to four
 byte glyph_code_pages[3][4] = {
   {0,  1,  2, -1},    //code page 0
-  {3,  4,  5,  6}     //code page 1
+  {3,  4,  5,  6},    //code page 1
+  {7,  8,  9, -1},    //code page 2
 };
 
 //glyph_map indexes elements in the glyph codepage which in turn
@@ -108,7 +141,7 @@ byte glyph_code_pages[3][4] = {
 byte glyph_map[3][9] = {
   {0, 2,2,1,0,0,1,2,2},  //set 0 : anterior surfaces
   {1, 2,2,1,0,0,1,3,3},  //set 1 : biting surfaces
-  {0, 2,2,1,0,0,1,2,2}   //set 2 : interior surfaces
+  {2, 2,2,1,0,0,1,2,2}   //set 2 : interior surfaces
 };
 
 typedef struct {
@@ -220,7 +253,7 @@ void loop() {
       }
       else if( 1 < button_status ) {
         //if another button press occurs - we restart
-        digitalWrite(resetPin, LOW);
+        //digitalWrite(resetPin, LOW);
       }
   }
 
